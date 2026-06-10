@@ -121,7 +121,7 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
 
   release:
-    if: ${{ needs.meta.outputs.is-release == 'true' }}
+    ##if: ${{ needs.meta.outputs.is-release == 'true' }}
     needs: [meta, linux-arm64, changelog]
     runs-on: ubuntu-latest
     permissions:
