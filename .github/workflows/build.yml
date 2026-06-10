@@ -51,80 +51,13 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-  windows:
+  linux-arm64:
     needs: meta
-    runs-on: windows-latest
+    # 使用 GitHub 提供的原生 Linux ARM64 运行器（公开仓库免费使用）
+    runs-on: ubuntu-24.04-arm
     strategy:
       matrix:
-        arch: [x86_64, aarch64]
-      fail-fast: false
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: "pnpm"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.arch == 'x86_64' && 'x86_64-pc-windows-msvc' || 'aarch64-pc-windows-msvc' }}
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: "src-tauri -> target"
-          shared-key: "windows-${{ matrix.arch }}"
-          cache-on-failure: true
-
-      - name: Install frontend dependencies
-        run: pnpm install
-
-      - name: Update version
-        shell: bash
-        run: |
-          VERSION="${{ needs.meta.outputs.version }}"
-          # Update package.json
-          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" package.json
-          # Update tauri.conf.json
-          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-          # Update Cargo.toml (only the package version at line start, not dependency versions)
-          sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
-          echo "Updated version to $VERSION"
-
-      - name: Build Tauri app
-        run: pnpm tauri build --no-bundle --target ${{ matrix.arch == 'x86_64' && 'x86_64-pc-windows-msvc' || 'aarch64-pc-windows-msvc' }}
-
-      - name: Prepare artifacts
-        shell: bash
-        run: |
-          mkdir -p install
-          TARGET_DIR="src-tauri/target/${{ matrix.arch == 'x86_64' && 'x86_64-pc-windows-msvc' || 'aarch64-pc-windows-msvc' }}/release"
-          cp -r "$TARGET_DIR/mxu.exe" install/ || true
-          cp -r "$TARGET_DIR/mxu.pdb" install/ || true
-          cp LICENSE README.md install/ || true
-          ls -la install/
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: MXU-win-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}
-          path: "install"
-
-  linux:
-    needs: meta
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [x86_64]
+        arch: [aarch64]
       fail-fast: false
 
     steps:
@@ -165,7 +98,7 @@ jobs:
           sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" package.json
           # Update tauri.conf.json
           sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-          # Update Cargo.toml (only the package version at line start, not dependency versions)
+          # Update Cargo.toml
           sed -i "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
           echo "Updated version to $VERSION"
 
@@ -178,7 +111,7 @@ jobs:
           cp -r src-tauri/target/release/mxu install/ || true
           cp LICENSE README.md install/ || true
           ls -la install/
-          tar -czvf MXU-linux-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}.tar.gz -C install .
+          tar -czvf MXU-linux-${{ matrix.arch }}-${{ needs.meta.outputs.tag }} .tar.gz -C install .
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v6
@@ -186,71 +119,6 @@ jobs:
         with:
           name: MXU-linux-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}
           path: "MXU-linux-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}.tar.gz"
-
-  macos:
-    needs: meta
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        arch: [x86_64, aarch64]
-      fail-fast: false
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: "pnpm"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.arch == 'x86_64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: "src-tauri -> target"
-          shared-key: "macos-${{ matrix.arch }}"
-          cache-on-failure: true
-
-      - name: Install frontend dependencies
-        run: pnpm install
-
-      - name: Update version
-        run: |
-          VERSION="${{ needs.meta.outputs.version }}"
-          # Update package.json
-          sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" package.json
-          # Update tauri.conf.json
-          sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
-          # Update Cargo.toml (only the package version at line start, not dependency versions)
-          sed -i '' "s/^version = \"[^\"]*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
-          echo "Updated version to $VERSION"
-
-      - name: Build Tauri app
-        run: pnpm tauri build --no-bundle --target ${{ matrix.arch == 'x86_64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}
-
-      - name: Prepare artifacts
-        run: |
-          mkdir -p install
-          cp -r src-tauri/target/${{ matrix.arch == 'x86_64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}/release/mxu install/ || true
-          cp LICENSE README.md install/ || true
-          ls -la install/
-          tar -czvf MXU-macos-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}.tar.gz -C install .
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: MXU-macos-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}
-          path: "MXU-macos-${{ matrix.arch }}-${{ needs.meta.outputs.tag }}.tar.gz"
 
   changelog:
     name: Generate changelog
@@ -276,7 +144,7 @@ jobs:
 
   release:
     if: ${{ needs.meta.outputs.is-release == 'true' }}
-    needs: [meta, windows, linux, macos, changelog]
+    needs: [meta, linux-arm64, changelog]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -293,12 +161,8 @@ jobs:
           for dir in */; do
             name="${dir%/}"
             cd "$name"
-            # Linux and macOS artifacts are already tgz files, just move them
             if ls *.tar.gz 1> /dev/null 2>&1; then
               mv *.tar.gz ../
-            else
-              # Windows artifacts need to be zipped
-              zip -r "../${name}.zip" .
             fi
             cd ..
           done
@@ -313,7 +177,6 @@ jobs:
           prerelease: false
           body: ${{ needs.changelog.outputs.release_body }}
           files: |
-            artifacts/*.zip
             artifacts/*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
