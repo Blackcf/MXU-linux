@@ -1,4 +1,4 @@
-name: build
+name: build-linux-arm64
 
 on:
   # 仅保留手动触发
